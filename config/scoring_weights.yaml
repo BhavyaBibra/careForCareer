@@ -1,0 +1,45 @@
+# Scoring engine weight table.
+# engine_version MUST be incremented whenever any weight changes.
+# The version is stored on every ReadinessAssessment for audit traceability.
+engine_version: "v1.0.0"
+
+tier_weights:
+  0: # fresh_grad — 0 YOE
+    skill_match: 0.40
+    dsa_signal: 0.30
+    system_design: 0.10
+    arch_depth: 0.00  # excluded for Tier 0-1 — not penalised
+    domain_relevance: 0.10
+    experience_match: 0.10
+
+  1: # junior — 1-3 YOE
+    skill_match: 0.35
+    dsa_signal: 0.25
+    system_design: 0.15
+    arch_depth: 0.05
+    domain_relevance: 0.10
+    experience_match: 0.10
+
+  2: # mid_level — 3-6 YOE
+    skill_match: 0.30
+    dsa_signal: 0.15
+    system_design: 0.25
+    arch_depth: 0.15
+    domain_relevance: 0.10
+    experience_match: 0.05
+
+  3: # senior — 6-10 YOE
+    skill_match: 0.20
+    dsa_signal: 0.05
+    system_design: 0.30
+    arch_depth: 0.35
+    domain_relevance: 0.05
+    experience_match: 0.05
+
+  4: # staff_plus — 10+ YOE
+    skill_match: 0.15
+    dsa_signal: 0.05
+    system_design: 0.25
+    arch_depth: 0.40
+    domain_relevance: 0.10
+    experience_match: 0.05

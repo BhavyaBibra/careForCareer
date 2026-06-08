@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS async_jobs CASCADE;
+DROP TABLE IF EXISTS llm_conversations CASCADE;
+DROP TYPE IF EXISTS job_status;

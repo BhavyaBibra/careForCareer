@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS readiness_assessments CASCADE;
+DROP TABLE IF EXISTS gap_analyses CASCADE;

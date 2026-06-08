@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS coach_messages CASCADE;
+DROP TABLE IF EXISTS coach_sessions CASCADE;

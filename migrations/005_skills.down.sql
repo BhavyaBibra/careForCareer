@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS candidate_skills CASCADE;
+DROP TABLE IF EXISTS skills CASCADE;
+DROP TYPE IF EXISTS skill_category;

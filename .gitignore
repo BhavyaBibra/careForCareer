@@ -1,0 +1,9 @@
+.env
+*.pem
+bin/
+dist/
+vendor/
+*.test
+coverage.out
+config/keys/
+*.local.yaml
