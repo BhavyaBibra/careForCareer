@@ -32,6 +32,23 @@ type PrepPlanSummary struct {
 	OverdueDays   int
 }
 
+// JDContext holds the specific job the candidate is targeting.
+// When present, every coach response is anchored to this role.
+type JDContext struct {
+	JobTitle       string
+	Company        string
+	Location       string
+	JDText         string
+	OverallMatch   int
+	TierFit        string
+	CompanyBar     string
+	Summary        string
+	SkillGaps      []string
+	ActionPlan     []string
+	InterviewFocus []string
+	TimeToReady    string
+}
+
 // CoachContext is assembled fresh on every coach turn from deterministic data sources.
 // Never derived from LLM memory. This is the grounding contract — the coach cannot
 // invent scores or gaps; it always refers back to this context.
@@ -40,6 +57,7 @@ type CoachContext struct {
 	GapAnalysis *gap.GapAnalysis
 	Assessment  *readiness.ReadinessAssessment
 	PrepPlan    *PrepPlanSummary
+	JDContext   *JDContext // set when session was started from a specific job
 }
 
 // BuildPrepSummary derives the PrepPlanSummary from a Roadmap.
@@ -69,24 +87,60 @@ func AssembleSystemPrompt(ctx *CoachContext) string {
 	var b strings.Builder
 
 	b.WriteString("You are CareerGPS Coach — a precise, direct career advisor for software engineers in India.\n")
-	b.WriteString("You have access to this candidate's actual skill data, gap analysis, and prep plan.\n")
-	b.WriteString("RULES: Never invent skill scores. Never hallucinate company interview patterns. Always refer to the data below.\n\n")
+	b.WriteString("You have access to this candidate's actual profile, positioning analysis, and prep plan.\n")
+	b.WriteString("RULES: Never invent skill scores. Never hallucinate company interview patterns. Always refer to the data below.\n")
+	b.WriteString("Be specific to the target role — generic advice is unhelpful. Every answer must tie back to what this candidate needs for THIS job.\n\n")
 
-	b.WriteString("[CANDIDATE CONTEXT]\n")
+	b.WriteString("── CANDIDATE PROFILE ──\n")
 	if ctx.Candidate != nil {
-		fmt.Fprintf(&b, "Tier: %s (inferred from %d YOE)\n",
+		fmt.Fprintf(&b, "Tier: %s (%d YOE)\n",
 			ctx.Candidate.InferredTier.TierLabel(), ctx.Candidate.YearsExperience)
 		if ctx.Candidate.CurrentCompany != "" {
 			fmt.Fprintf(&b, "Current Company: %s\n", ctx.Candidate.CurrentCompany)
 		}
 	}
 	if ctx.Assessment != nil {
-		fmt.Fprintf(&b, "Readiness Score: %.0f%% (engine: %s)\n",
-			ctx.Assessment.CompositeScore, ctx.Assessment.EngineVersion)
+		fmt.Fprintf(&b, "General Readiness Score: %.0f%%\n", ctx.Assessment.CompositeScore)
+	}
+
+	if ctx.JDContext != nil {
+		jd := ctx.JDContext
+		b.WriteString("\n── TARGET ROLE ──\n")
+		fmt.Fprintf(&b, "Role: %s at %s (%s)\n", jd.JobTitle, jd.Company, jd.Location)
+		fmt.Fprintf(&b, "Match Score: %d%%\n", jd.OverallMatch)
+		fmt.Fprintf(&b, "Tier Fit: %s | Company Bar: %s\n", jd.TierFit, jd.CompanyBar)
+		if jd.Summary != "" {
+			fmt.Fprintf(&b, "Positioning: %s\n", jd.Summary)
+		}
+		if len(jd.SkillGaps) > 0 {
+			fmt.Fprintf(&b, "Skill Gaps: %s\n", strings.Join(jd.SkillGaps, ", "))
+		}
+		if len(jd.ActionPlan) > 0 {
+			b.WriteString("Priority Actions:\n")
+			for i, a := range jd.ActionPlan {
+				fmt.Fprintf(&b, "  %d. %s\n", i+1, a)
+			}
+		}
+		if len(jd.InterviewFocus) > 0 {
+			fmt.Fprintf(&b, "Expected Interview Topics: %s\n", strings.Join(jd.InterviewFocus, ", "))
+		}
+		if jd.TimeToReady != "" {
+			fmt.Fprintf(&b, "Time to Interview-Ready: %s\n", jd.TimeToReady)
+		}
+		if jd.JDText != "" {
+			// Truncate JD to keep prompt size manageable
+			jdSnippet := jd.JDText
+			if len(jdSnippet) > 1500 {
+				jdSnippet = jdSnippet[:1500] + "\n[JD truncated]"
+			}
+			b.WriteString("\nJob Description (excerpt):\n")
+			b.WriteString(jdSnippet)
+			b.WriteString("\n")
+		}
 	}
 
 	if ctx.GapAnalysis != nil {
-		b.WriteString("\n[GAP SUMMARY]\n")
+		b.WriteString("\n── GAP ANALYSIS ──\n")
 		critical := ctx.GapAnalysis.CriticalGaps(3)
 		onTrack := ctx.GapAnalysis.OnTrackSkills()
 		for _, g := range critical {
@@ -102,7 +156,7 @@ func AssembleSystemPrompt(ctx *CoachContext) string {
 	}
 
 	if ctx.PrepPlan != nil {
-		b.WriteString("\n[PREP PLAN]\n")
+		b.WriteString("\n── PREP PLAN ──\n")
 		fmt.Fprintf(&b, "Day %d of %d — Interview: %s (%d days remaining)\n",
 			ctx.PrepPlan.CurrentDay, ctx.PrepPlan.TotalDays,
 			ctx.PrepPlan.InterviewDate.Format("Jan 2, 2006"),
@@ -116,7 +170,7 @@ func AssembleSystemPrompt(ctx *CoachContext) string {
 		}
 	}
 
-	b.WriteString("\nAnswer questions grounded in the data above. Be concise and actionable.\n")
+	b.WriteString("\nAnswer questions grounded in the data above. Be concise, specific, and actionable.\n")
 	return b.String()
 }
 
@@ -141,6 +195,23 @@ func NewSession(candidateID, assessmentID uuid.UUID, contextSnapshot string) (*C
 		ID:              uuid.New(),
 		CandidateID:     candidateID,
 		AssessmentID:    assessmentID,
+		ContextSnapshot: contextSnapshot,
+		CreatedAt:       now,
+		ExpiresAt:       now.Add(24 * time.Hour),
+	}, nil
+}
+
+// NewJDSession creates a coach session anchored to a specific JD.
+// AssessmentID is set to uuid.Nil — these sessions don't require a prior assessment.
+func NewJDSession(candidateID uuid.UUID, contextSnapshot string) (*CoachSession, error) {
+	if candidateID == uuid.Nil {
+		return nil, errors.New("coach_session: CandidateID is required")
+	}
+	now := time.Now().UTC()
+	return &CoachSession{
+		ID:              uuid.New(),
+		CandidateID:     candidateID,
+		AssessmentID:    uuid.Nil, // intentionally nil for JD sessions
 		ContextSnapshot: contextSnapshot,
 		CreatedAt:       now,
 		ExpiresAt:       now.Add(24 * time.Hour),

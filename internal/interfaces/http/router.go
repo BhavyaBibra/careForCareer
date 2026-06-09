@@ -12,23 +12,28 @@ import (
 
 // SetupRouter wires all routes and returns the configured Gin engine.
 func SetupRouter(
-	authHandler *handlers.AuthHandler,
-	assessmentHandler *handlers.AssessmentHandler,
-	coachHandler *handlers.CoachHandler,
-	publicKey *rsa.PublicKey,
+	authHandler         *handlers.AuthHandler,
+	candidateHandler    *handlers.CandidateHandler,
+	resumeHandler       *handlers.ResumeHandler,
+	assessmentHandler   *handlers.AssessmentHandler,
+	coachHandler        *handlers.CoachHandler,
+	jobsHandler         *handlers.JobsHandler,
+	positioningHandler  *handlers.PositioningHandler,
+	prepHandler         *handlers.PrepHandler,
+	pivotHandler        *handlers.PivotHandler,
+	studentHandler      *handlers.StudentHandler,
+	publicKey           *rsa.PublicKey,
 ) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(middleware.RequestID())
 
-	// Health check
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
 	v1 := r.Group("/api/v1")
 
-	// Auth — unauthenticated
 	authGroup := v1.Group("/auth")
 	{
 		authGroup.POST("/register", authHandler.Register)
@@ -37,10 +42,18 @@ func SetupRouter(
 		authGroup.POST("/logout", authHandler.Logout)
 	}
 
-	// Authenticated routes
 	authed := v1.Group("")
 	authed.Use(middleware.JWT(publicKey))
 	{
+		// Candidate profile
+		authed.GET("/candidate", candidateHandler.GetProfile)
+		authed.POST("/candidate", candidateHandler.CreateProfile)
+		authed.PUT("/candidate", candidateHandler.UpdateProfile)
+
+		// Resumes
+		authed.POST("/resumes", resumeHandler.Upload)
+		authed.GET("/resumes/:id", resumeHandler.GetResume)
+
 		// Assessments
 		authed.GET("/assessments/:id", assessmentHandler.Get)
 		authed.GET("/assessments/:id/readiness", assessmentHandler.GetReadiness)
@@ -50,6 +63,24 @@ func SetupRouter(
 		authed.GET("/coach/sessions/:id", coachHandler.GetSession)
 		authed.POST("/coach/sessions/:id/messages", coachHandler.SendMessage)
 		authed.GET("/coach/sessions/:id/stream", coachHandler.Stream)
+
+		// Jobs
+		authed.GET("/jobs/search", jobsHandler.Search)
+		authed.POST("/jobs/position", positioningHandler.Analyse)
+		authed.POST("/jobs/prep-plan", prepHandler.GeneratePrepPlan)
+
+		// JD-aware coach sessions
+		authed.POST("/coach/jd-sessions", prepHandler.CreateJDSession)
+		authed.GET("/coach/jd-sessions/:id/stream", prepHandler.StreamJD)
+
+		// Career pivot (requires profile for YOE context)
+		authed.POST("/pivot/analyse", pivotHandler.Analyse)
+	}
+
+	// Guest-accessible routes (no auth required) — student track + public job search
+	open := v1.Group("")
+	{
+		open.POST("/student/assess", studentHandler.Assess)
 	}
 
 	return r

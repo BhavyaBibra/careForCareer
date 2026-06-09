@@ -26,7 +26,6 @@ type TokenPair struct {
 
 type Claims struct {
 	jwt.RegisteredClaims
-	UserID string `json:"sub"`
 }
 
 type Service struct {

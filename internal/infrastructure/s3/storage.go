@@ -51,14 +51,18 @@ func New(ctx context.Context, endpoint, region, bucket, accessKey, secretKey str
 	}, nil
 }
 
-// Upload stores an object in S3 and returns the storage key.
-func (s *Storage) Upload(ctx context.Context, key string, body io.Reader, contentType string) error {
-	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
+// Upload stores an object in S3. contentLength is used for progress tracking; pass -1 if unknown.
+func (s *Storage) Upload(ctx context.Context, key string, body io.Reader, contentLength int64) error {
+	input := &s3.PutObjectInput{
 		Bucket:      aws.String(s.bucket),
 		Key:         aws.String(key),
 		Body:        body,
-		ContentType: aws.String(contentType),
-	})
+		ContentType: aws.String("application/pdf"),
+	}
+	if contentLength > 0 {
+		input.ContentLength = aws.Int64(contentLength)
+	}
+	_, err := s.client.PutObject(ctx, input)
 	if err != nil {
 		return fmt.Errorf("s3: upload %s: %w", key, err)
 	}

@@ -57,7 +57,6 @@ func NewService(
 
 // CreateSession starts a new coach session bound to an assessment.
 func (s *Service) CreateSession(ctx context.Context, candidateID, assessmentID uuid.UUID) (*coach.CoachSession, error) {
-	// Build context snapshot from deterministic sources
 	coachCtx, err := s.assembleContext(ctx, candidateID, assessmentID)
 	if err != nil {
 		return nil, fmt.Errorf("coach: assemble context: %w", err)
@@ -77,6 +76,84 @@ func (s *Service) CreateSession(ctx context.Context, candidateID, assessmentID u
 		return nil, fmt.Errorf("coach: create session: %w", err)
 	}
 	return sess, nil
+}
+
+// CreateJDSession starts a coach session anchored to a specific job.
+// No assessmentID required — uses a nil UUID sentinel.
+// The JD context and positioning data are injected directly into the system prompt.
+func (s *Service) CreateJDSession(ctx context.Context, candidateID uuid.UUID, jdCtx *coach.JDContext) (*coach.CoachSession, error) {
+	// Base context: just candidate profile, no gap analysis required
+	coachCtx := &coach.CoachContext{
+		JDContext: jdCtx,
+	}
+
+	snapshot, err := json.Marshal(coachCtx)
+	if err != nil {
+		return nil, fmt.Errorf("coach: marshal context: %w", err)
+	}
+
+	// Use nil UUID for assessmentID — JD sessions are not bound to an assessment
+	sess, err := coach.NewJDSession(candidateID, string(snapshot))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.sessionRepo.Create(ctx, sess); err != nil {
+		return nil, fmt.Errorf("coach: create jd session: %w", err)
+	}
+	return sess, nil
+}
+
+// SendMessageJD handles messages in a JD-aware session.
+// Unlike SendMessage, it reconstructs context from the stored JDContext snapshot.
+func (s *Service) SendMessageJD(ctx context.Context, userID uuid.UUID, sessionID uuid.UUID, content string) (<-chan llm.LLMChunk, error) {
+	_, allowed, err := s.dailyCounter.Increment(ctx, userID.String())
+	if err != nil {
+		return nil, fmt.Errorf("coach: rate limit check: %w", err)
+	}
+	if !allowed {
+		return nil, apperrors.ErrRateLimit
+	}
+
+	sess, err := s.sessionRepo.GetByID(ctx, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	if sess.IsExpired() {
+		return nil, apperrors.ErrNotFound
+	}
+
+	// Persist user message
+	userMsg, err := coach.NewMessage(sessionID, coach.RoleUser, content)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.messageRepo.Create(ctx, userMsg); err != nil {
+		return nil, fmt.Errorf("coach: persist user message: %w", err)
+	}
+
+	// Reconstruct JD context from snapshot
+	var coachCtx coach.CoachContext
+	if err := json.Unmarshal([]byte(sess.ContextSnapshot), &coachCtx); err != nil {
+		// Fallback: empty context
+		coachCtx = coach.CoachContext{}
+	}
+
+	// Load conversation history
+	history, err := s.messageRepo.ListBySessionID(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("coach: load history: %w", err)
+	}
+
+	systemPrompt := coach.AssembleSystemPrompt(&coachCtx)
+	userPrompt := buildUserPrompt(history, content)
+
+	return s.llm.Stream(ctx, llm.LLMRequest{
+		SystemPrompt: systemPrompt,
+		UserPrompt:   userPrompt,
+		MaxTokens:    coachMaxTokens,
+		Temperature:  coachTemperature,
+	})
 }
 
 // SendMessage persists the user message and returns a channel for the LLM stream.

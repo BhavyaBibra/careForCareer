@@ -52,7 +52,7 @@ func main() {
 	}
 
 	// S3
-	_, err = s3infra.New(ctx, cfg.S3Endpoint, cfg.S3Region, cfg.S3Bucket, cfg.AWSAccessKeyID, cfg.AWSSecretKey)
+	storage, err := s3infra.New(ctx, cfg.S3Endpoint, cfg.S3Region, cfg.S3Bucket, cfg.AWSAccessKeyID, cfg.AWSSecretKey)
 	if err != nil {
 		log.Fatal("s3 init failed", zap.Error(err))
 	}
@@ -65,6 +65,8 @@ func main() {
 
 	// Repos
 	userRepo := postgres.NewUserRepo(pool)
+	candidateRepo := postgres.NewCandidateRepo(pool)
+	resumeRepo := postgres.NewResumeRepo(pool)
 	readinessRepo := postgres.NewReadinessRepo(pool)
 	coachSessionRepo := postgres.NewCoachSessionRepo(pool)
 	coachMessageRepo := postgres.NewCoachMessageRepo(pool)
@@ -92,11 +94,18 @@ func main() {
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(authSvc)
+	candidateHandler := handlers.NewCandidateHandler(candidateRepo)
+	resumeHandler := handlers.NewResumeHandler(resumeRepo, candidateRepo, storage)
 	assessmentHandler := handlers.NewAssessmentHandler(readinessRepo)
 	coachHandler := handlers.NewCoachHandler(coachSvc)
+	jobsHandler := handlers.NewJobsHandler()
+	positioningHandler := handlers.NewPositioningHandler(candidateRepo, cachedLLM)
+	prepHandler := handlers.NewPrepHandler(coachSvc, candidateRepo, cachedLLM)
+	pivotHandler := handlers.NewPivotHandler(candidateRepo, cachedLLM)
+	studentHandler := handlers.NewStudentHandler(cachedLLM)
 
 	// Router
-	router := httpserver.SetupRouter(authHandler, assessmentHandler, coachHandler, publicKey)
+	router := httpserver.SetupRouter(authHandler, candidateHandler, resumeHandler, assessmentHandler, coachHandler, jobsHandler, positioningHandler, prepHandler, pivotHandler, studentHandler, publicKey)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.APIPort),
