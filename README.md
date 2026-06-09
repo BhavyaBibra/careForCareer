@@ -1,196 +1,218 @@
-[![GitHub Workflow Status (branch)](https://img.shields.io/github/actions/workflow/status/golang-migrate/migrate/ci.yaml?branch=master)](https://github.com/golang-migrate/migrate/actions/workflows/ci.yaml?query=branch%3Amaster)
-[![GoDoc](https://pkg.go.dev/badge/github.com/golang-migrate/migrate)](https://pkg.go.dev/github.com/golang-migrate/migrate/v4)
-[![Coverage Status](https://img.shields.io/coveralls/github/golang-migrate/migrate/master.svg)](https://coveralls.io/github/golang-migrate/migrate?branch=master)
-[![packagecloud.io](https://img.shields.io/badge/deb-packagecloud.io-844fec.svg)](https://packagecloud.io/golang-migrate/migrate?filter=debs)
-[![Docker Pulls](https://img.shields.io/docker/pulls/migrate/migrate.svg)](https://hub.docker.com/r/migrate/migrate/)
-![Supported Go Versions](https://img.shields.io/badge/Go-1.21%2C%201.22-lightgrey.svg)
-[![GitHub Release](https://img.shields.io/github/release/golang-migrate/migrate.svg)](https://github.com/golang-migrate/migrate/releases)
-[![Go Report Card](https://goreportcard.com/badge/github.com/golang-migrate/migrate/v4)](https://goreportcard.com/report/github.com/golang-migrate/migrate/v4)
+![Go](https://img.shields.io/badge/Go-1.22-blue)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue)
+![Redis](https://img.shields.io/badge/Redis-7-red)
+![React](https://img.shields.io/badge/React-18-61dafb)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-# migrate
+# careForCareer
 
-__Database migrations written in Go. Use as [CLI](#cli-usage) or import as [library](#use-in-your-go-project).__
+> AI-powered career intelligence platform for software engineers.
+> Analyses your resume against live job postings, scores skill gaps, generates week-by-week prep plans, and coaches you for a specific role — all grounded in your actual resume and the actual JD.
 
-* Migrate reads migrations from [sources](#migration-sources)
-   and applies them in correct order to a [database](#databases).
-* Drivers are "dumb", migrate glues everything together and makes sure the logic is bulletproof.
-   (Keeps the drivers lightweight, too.)
-* Database drivers don't assume things or try to correct user input. When in doubt, fail.
-
-Forked from [mattes/migrate](https://github.com/mattes/migrate)
-
-## Databases
-
-Database drivers run migrations. [Add a new database?](database/driver.go)
-
-* [PostgreSQL](database/postgres)
-* [PGX v4](database/pgx)
-* [PGX v5](database/pgx/v5)
-* [Redshift](database/redshift)
-* [Ql](database/ql)
-* [Cassandra / ScyllaDB](database/cassandra)
-* [SQLite](database/sqlite)
-* [SQLite3](database/sqlite3) ([todo #165](https://github.com/mattes/migrate/issues/165))
-* [SQLCipher](database/sqlcipher)
-* [MySQL / MariaDB](database/mysql)
-* [Neo4j](database/neo4j)
-* [MongoDB](database/mongodb)
-* [CrateDB](database/crate) ([todo #170](https://github.com/mattes/migrate/issues/170))
-* [Shell](database/shell) ([todo #171](https://github.com/mattes/migrate/issues/171))
-* [Google Cloud Spanner](database/spanner)
-* [CockroachDB](database/cockroachdb)
-* [YugabyteDB](database/yugabytedb)
-* [ClickHouse](database/clickhouse)
-* [Firebird](database/firebird)
-* [MS SQL Server](database/sqlserver)
-* [rqlite](database/rqlite)
-
-### Database URLs
-
-Database connection strings are specified via URLs. The URL format is driver dependent but generally has the form: `dbdriver://username:password@host:port/dbname?param1=true&param2=false`
-
-Any [reserved URL characters](https://en.wikipedia.org/wiki/Percent-encoding#Percent-encoding_reserved_characters) need to be escaped. Note, the `%` character also [needs to be escaped](https://en.wikipedia.org/wiki/Percent-encoding#Percent-encoding_the_percent_character)
-
-Explicitly, the following characters need to be escaped:
-`!`, `#`, `$`, `%`, `&`, `'`, `(`, `)`, `*`, `+`, `,`, `/`, `:`, `;`, `=`, `?`, `@`, `[`, `]`
-
-It's easiest to always run the URL parts of your DB connection URL (e.g. username, password, etc) through an URL encoder. See the example Python snippets below:
-
-```bash
-$ python3 -c 'import urllib.parse; print(urllib.parse.quote(input("String to encode: "), ""))'
-String to encode: FAKEpassword!#$%&'()*+,/:;=?@[]
-FAKEpassword%21%23%24%25%26%27%28%29%2A%2B%2C%2F%3A%3B%3D%3F%40%5B%5D
-$ python2 -c 'import urllib; print urllib.quote(raw_input("String to encode: "), "")'
-String to encode: FAKEpassword!#$%&'()*+,/:;=?@[]
-FAKEpassword%21%23%24%25%26%27%28%29%2A%2B%2C%2F%3A%3B%3D%3F%40%5B%5D
-$
-```
-
-## Migration Sources
-
-Source drivers read migrations from local or remote sources. [Add a new source?](source/driver.go)
-
-* [Filesystem](source/file) - read from filesystem
-* [io/fs](source/iofs) - read from a Go [io/fs](https://pkg.go.dev/io/fs#FS)
-* [Go-Bindata](source/go_bindata) - read from embedded binary data ([jteeuwen/go-bindata](https://github.com/jteeuwen/go-bindata))
-* [pkger](source/pkger) - read from embedded binary data ([markbates/pkger](https://github.com/markbates/pkger))
-* [GitHub](source/github) - read from remote GitHub repositories
-* [GitHub Enterprise](source/github_ee) - read from remote GitHub Enterprise repositories
-* [Bitbucket](source/bitbucket) - read from remote Bitbucket repositories
-* [Gitlab](source/gitlab) - read from remote Gitlab repositories
-* [AWS S3](source/aws_s3) - read from Amazon Web Services S3
-* [Google Cloud Storage](source/google_cloud_storage) - read from Google Cloud Platform Storage
-
-## CLI usage
-
-* Simple wrapper around this library.
-* Handles ctrl+c (SIGINT) gracefully.
-* No config search paths, no config files, no magic ENV var injections.
-
-__[CLI Documentation](cmd/migrate)__
-
-### Basic usage
-
-```bash
-$ migrate -source file://path/to/migrations -database postgres://localhost:5432/database up 2
-```
-
-### Docker usage
-
-```bash
-$ docker run -v {{ migration dir }}:/migrations --network host migrate/migrate
-    -path=/migrations/ -database postgres://localhost:5432/database up 2
-```
-
-## Use in your Go project
-
-* API is stable and frozen for this release (v3 & v4).
-* Uses [Go modules](https://golang.org/cmd/go/#hdr-Modules__module_versions__and_more) to manage dependencies.
-* To help prevent database corruptions, it supports graceful stops via `GracefulStop chan bool`.
-* Bring your own logger.
-* Uses `io.Reader` streams internally for low memory overhead.
-* Thread-safe and no goroutine leaks.
-
-__[Go Documentation](https://pkg.go.dev/github.com/golang-migrate/migrate/v4)__
-
-```go
-import (
-    "github.com/golang-migrate/migrate/v4"
-    _ "github.com/golang-migrate/migrate/v4/database/postgres"
-    _ "github.com/golang-migrate/migrate/v4/source/github"
-)
-
-func main() {
-    m, err := migrate.New(
-        "github://mattes:personal-access-token@mattes/migrate_test",
-        "postgres://localhost:5432/database?sslmode=enable")
-    m.Steps(2)
-}
-```
-
-Want to use an existing database client?
-
-```go
-import (
-    "database/sql"
-    _ "github.com/lib/pq"
-    "github.com/golang-migrate/migrate/v4"
-    "github.com/golang-migrate/migrate/v4/database/postgres"
-    _ "github.com/golang-migrate/migrate/v4/source/file"
-)
-
-func main() {
-    db, err := sql.Open("postgres", "postgres://localhost:5432/database?sslmode=enable")
-    driver, err := postgres.WithInstance(db, &postgres.Config{})
-    m, err := migrate.NewWithDatabaseInstance(
-        "file:///migrations",
-        "postgres", driver)
-    m.Up() // or m.Step(2) if you want to explicitly set the number of migrations to run
-}
-```
-
-## Getting started
-
-Go to [getting started](GETTING_STARTED.md)
-
-## Tutorials
-
-* [CockroachDB](database/cockroachdb/TUTORIAL.md)
-* [PostgreSQL](database/postgres/TUTORIAL.md)
-
-(more tutorials to come)
-
-## Migration files
-
-Each migration has an up and down migration. [Why?](FAQ.md#why-two-separate-files-up-and-down-for-a-migration)
-
-```bash
-1481574547_create_users_table.up.sql
-1481574547_create_users_table.down.sql
-```
-
-[Best practices: How to write migrations.](MIGRATIONS.md)
-
-## Coming from another db migration tool?
-
-Check out [migradaptor](https://github.com/musinit/migradaptor/).
-*Note: migradaptor is not affiliated or supported by this project*
-
-## Versions
-
-Version | Supported? | Import | Notes
---------|------------|--------|------
-**master** | :white_check_mark: | `import "github.com/golang-migrate/migrate/v4"` | New features and bug fixes arrive here first |
-**v4** | :white_check_mark: | `import "github.com/golang-migrate/migrate/v4"` | Used for stable releases |
-**v3** | :x: | `import "github.com/golang-migrate/migrate"` (with package manager) or `import "gopkg.in/golang-migrate/migrate.v3"` (not recommended) | **DO NOT USE** - No longer supported |
-
-## Development and Contributing
-
-Yes, please! [`Makefile`](Makefile) is your friend,
-read the [development guide](CONTRIBUTING.md).
-
-Also have a look at the [FAQ](FAQ.md).
+**Built with:** Go · PostgreSQL · Redis · React · Anthropic Claude API · AWS S3
 
 ---
 
-Looking for alternatives? [https://awesome-go.com/#database](https://awesome-go.com/#database).
+## The problem it solves
+
+Most career tools give generic advice. careForCareer is built around one idea: **every answer should be grounded in your specific resume and the specific job you're targeting.**
+
+Upload your resume → search for a job on LinkedIn → see exactly where you stand → get a week-by-week plan → chat with a coach that knows the full context.
+
+---
+
+## Features
+
+| Feature | Description |
+|---|---|
+| Resume upload + parse | Upload PDF → extracted, stored in S3, parsed by LLM |
+| LinkedIn job search | Search by keyword + location via Apify scraper (mock fallback if no API key) |
+| Candidate positioning | Match % against a JD, skill gaps, tier fit, company bar, time-to-ready |
+| Week-by-week prep plan | Personalised study plan from your gaps + the JD |
+| JD-aware coach | SSE streaming coach that knows your resume, the JD, and your positioning |
+| Career pivot analyser | PM / TPM / EM / SRE pivot: transferable skills, timeline, entry paths, day-in-the-life |
+| Student track | For non-CS / tier-3 college students targeting specific roles _(placeholder — coming soon)_ |
+| Guest access | Pivot and student flows work without an account |
+
+---
+
+## Architecture
+
+```
+careForCareer/
+├── cmd/
+│   ├── api/              # HTTP server entrypoint
+│   └── worker/           # Background job worker (Asynq)
+├── config/               # Viper config + RSA key loading
+├── internal/
+│   ├── domain/           # Pure domain types — zero external imports
+│   │   ├── auth/  candidate/  coach/  company/
+│   │   ├── gap/   jd/         readiness/  resume/
+│   │   └── roadmap/  skill/
+│   ├── application/      # Use cases (auth service, coach service)
+│   ├── infrastructure/
+│   │   ├── llm/          # Anthropic Claude provider + Redis caching layer
+│   │   ├── postgres/     # Repository implementations (11 tables)
+│   │   ├── redis/        # Cache + daily message counter
+│   │   └── s3/           # Resume storage (MinIO locally, S3 in prod)
+│   └── interfaces/
+│       └── http/
+│           ├── handlers/ # One handler per feature (auth, jobs, positioning, prep, pivot, student)
+│           ├── middleware/  # JWT auth, request ID
+│           └── router.go
+├── migrations/           # 11 SQL migration files (golang-migrate)
+├── seed/                 # Dev seed data
+├── frontend/             # React 18 + Vite + TypeScript + Tailwind CSS
+│   └── src/
+│       ├── pages/        # Landing · Login · Onboarding · Dashboard · Pivot · Student
+│       ├── components/   # PositioningPanel · PrepPlanPanel
+│       └── api/          # Typed API clients per feature
+└── deployments/          # Dockerfile + docker-compose
+```
+
+### Key design decisions
+
+- **Hexagonal (clean) architecture** — domain layer has zero infrastructure imports; swap Postgres for anything without touching business logic
+- **RS256 JWT** — asymmetric signing; access token lives in memory (XSS safe), refresh token in sessionStorage
+- **Redis-cached LLM inference** — cache key = hash of (system prompt + user prompt + model version); configurable TTL eliminates redundant API calls
+- **SSE over WebSockets** — coach streaming is server→client only; SSE works over plain HTTP/1.1 and auto-reconnects
+- **Structured JSON from LLM** — all Claude responses return typed JSON validated against Go structs; no freeform parsing
+
+---
+
+## Tech stack
+
+| Layer | Tech |
+|---|---|
+| Backend language | Go 1.22 |
+| HTTP framework | Gin |
+| Database | PostgreSQL 16 |
+| Cache + background jobs | Redis 7, Asynq |
+| File storage | AWS S3 / MinIO (local) |
+| Auth | JWT RS256 |
+| LLM | Anthropic Claude (claude-sonnet) |
+| Job scraping | Apify LinkedIn Jobs actor |
+| Frontend | React 18, Vite, TypeScript, Tailwind CSS |
+| Infra | Docker, docker-compose |
+
+---
+
+## API routes
+
+```
+# Auth (public)
+POST   /api/v1/auth/register
+POST   /api/v1/auth/login
+POST   /api/v1/auth/refresh
+POST   /api/v1/auth/logout
+
+# Profile (authenticated)
+GET    /api/v1/candidate
+POST   /api/v1/candidate
+PUT    /api/v1/candidate
+
+# Resume (authenticated)
+POST   /api/v1/resumes
+GET    /api/v1/resumes/:id
+
+# Assessments (authenticated)
+GET    /api/v1/assessments/:id
+GET    /api/v1/assessments/:id/readiness
+
+# Jobs + Positioning (authenticated)
+GET    /api/v1/jobs/search              # keyword + location → LinkedIn jobs
+POST   /api/v1/jobs/position            # resume + JD → match %, gaps, action plan
+POST   /api/v1/jobs/prep-plan           # gaps + JD → week-by-week study plan
+
+# Coach (authenticated)
+POST   /api/v1/coach/sessions
+GET    /api/v1/coach/sessions/:id
+POST   /api/v1/coach/sessions/:id/messages
+GET    /api/v1/coach/sessions/:id/stream       # SSE streaming
+
+# JD-aware coach (authenticated)
+POST   /api/v1/coach/jd-sessions
+GET    /api/v1/coach/jd-sessions/:id/stream    # SSE streaming
+
+# Career pivot (authenticated — needs profile for YOE/tier context)
+POST   /api/v1/pivot/analyse
+
+# Student track (open — no auth required)
+POST   /api/v1/student/assess
+```
+
+---
+
+## Local setup
+
+**Prerequisites:** Go 1.22+, Node 20+, Docker, `golang-migrate` CLI
+
+```bash
+# 1. Clone
+git clone https://github.com/zekst/careForCareer
+cd careForCareer
+
+# 2. Start PostgreSQL, Redis, MinIO
+make docker-up
+
+# 3. Copy env and fill in values
+cp .env.example .env
+# Required: ANTHROPIC_API_KEY, DATABASE_URL, REDIS_ADDR, S3 keys
+# Optional: APIFY_API_TOKEN (falls back to mock jobs if not set)
+
+# 4. Generate RSA keys for JWT
+make keys
+
+# 5. Run database migrations
+make migrate-up
+
+# 6. Seed dev data (optional)
+make seed
+
+# 7. Start API server
+make run-api          # → http://localhost:8080
+
+# 8. Start frontend (separate terminal)
+cd frontend
+npm install
+npm run dev           # → http://localhost:5173
+```
+
+---
+
+## Status
+
+### Done ✅
+
+- [x] Auth — register, login, JWT RS256, refresh token rotation, logout
+- [x] Candidate profile — YOE, current company, skills, tier inference
+- [x] Resume upload — PDF → S3, LLM parse + readiness score
+- [x] Job search — LinkedIn scraper via Apify with realistic mock fallback
+- [x] Candidate positioning — match %, skill gaps, tier fit, company bar, action plan, time-to-ready
+- [x] Prep plan generator — week-by-week study plan from JD + positioning gaps
+- [x] JD-aware coach — SSE streaming, full positioning context injected, session snapshots in PostgreSQL
+- [x] Career pivot analyser — transferable skills, skills to learn, timeline, entry paths, day-in-the-life
+- [x] Career pivot frontend — role picker, 4-tab result (overview / skills / paths / plan)
+- [x] Landing page — 3-track selector (Professional / Career Pivot / Student)
+- [x] Guest access — student and pivot routes accessible without account
+- [x] Student track placeholder page
+
+### In progress 🔧
+
+- [ ] End-to-end build verification on host machine
+- [ ] Student track full implementation — 8-question profile, domain readiness bars, phase timeline, role-specific roadmap
+
+### Pending 📋
+
+- [ ] Hosting + deployment (Railway / Fly.io / EC2 — TBD)
+- [ ] Naukri + Wellfound job sources (currently only LinkedIn via Apify)
+- [ ] Rate limiting on open routes (student/assess)
+- [ ] CI/CD pipeline (GitHub Actions)
+- [ ] End-to-end and integration tests
+- [ ] Custom domain + SSL
+
+---
+
+## License
+
+MIT

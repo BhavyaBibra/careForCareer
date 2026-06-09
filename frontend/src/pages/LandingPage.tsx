@@ -79,7 +79,7 @@ export default function LandingPage() {
       <div className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-xl">🧭</span>
-          <span className="font-bold text-white">CareerGPS</span>
+          <span className="font-bold text-white">careForCareer</span>
           <span className="text-xs text-gray-600 ml-1">for Indian engineers</span>
         </div>
         <div className="flex items-center gap-3">
@@ -165,7 +165,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <div className="border-t border-gray-800 px-6 py-6 text-center text-xs text-gray-600">
-        CareerGPS · Built for engineers who want honest, specific career guidance · No ads, no fluff
+        careForCareer · Built for engineers who want honest, specific career guidance · No ads, no fluff
       </div>
     </div>
   )
