@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -78,6 +79,15 @@ func Load() (*Config, error) {
 
 	_ = v.ReadInConfig() // .env is optional — env vars take precedence
 
+	// AutomaticEnv alone doesn't surface env vars to Unmarshal: viper only
+	// unmarshals keys it already knows (defaults or config file). In
+	// production there is no .env file, so bind every struct key explicitly.
+	for _, key := range configKeys() {
+		_ = v.BindEnv(key)
+	}
+	// Render env uses the shorter name; accept it as a fallback.
+	_ = v.BindEnv("ACCESS_TOKEN_TTL_MINUTES", "ACCESS_TOKEN_TTL_MINUTES", "ACCESS_TOKEN_TTL_MIN")
+
 	cfg := &Config{}
 	if err := v.Unmarshal(cfg); err != nil {
 		return nil, fmt.Errorf("config: unmarshal failed: %w", err)
@@ -94,6 +104,18 @@ func Load() (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// configKeys returns the mapstructure tag of every Config field.
+func configKeys() []string {
+	t := reflect.TypeOf(Config{})
+	keys := make([]string, 0, t.NumField())
+	for i := 0; i < t.NumField(); i++ {
+		if tag := t.Field(i).Tag.Get("mapstructure"); tag != "" {
+			keys = append(keys, tag)
+		}
+	}
+	return keys
 }
 
 func (c *Config) IsProduction() bool {

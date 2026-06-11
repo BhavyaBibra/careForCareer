@@ -7,3 +7,7 @@ vendor/
 coverage.out
 config/keys/
 *.local.yaml
+
+# build binaries
+/api
+/worker
