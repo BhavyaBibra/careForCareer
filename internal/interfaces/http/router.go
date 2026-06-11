@@ -3,7 +3,9 @@ package http
 import (
 	"crypto/rsa"
 	"net/http"
+	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
 	"careergps/internal/interfaces/http/handlers"
@@ -26,6 +28,14 @@ func SetupRouter(
 ) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery())
+	r.Use(cors.New(cors.Config{
+		// Reflect the request origin back so credentialed (Bearer) requests work
+		AllowOriginFunc:  func(_ string) bool { return true },
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 	r.Use(middleware.RequestID())
 
 	r.GET("/health", func(c *gin.Context) {
