@@ -1,7 +1,11 @@
 import axios from 'axios'
 
 // Student track uses a separate axios instance — no auth token needed
-const guestApi = axios.create({ baseURL: '/api/v1' })
+const baseURL = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api/v1`
+  : '/api/v1'
+
+const guestApi = axios.create({ baseURL })
 
 export interface StudentAssessRequest {
   academic_status: string
