@@ -11,3 +11,6 @@ config/keys/
 # build binaries
 /api
 /worker
+
+# personal documents
+*.pdf
