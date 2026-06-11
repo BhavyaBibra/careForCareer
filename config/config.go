@@ -30,6 +30,8 @@ type Config struct {
 
 	JWTPrivateKeyPath    string `mapstructure:"JWT_PRIVATE_KEY_PATH"`
 	JWTPublicKeyPath     string `mapstructure:"JWT_PUBLIC_KEY_PATH"`
+	JWTPrivateKeyB64     string `mapstructure:"JWT_PRIVATE_KEY_B64"`
+	JWTPublicKeyB64      string `mapstructure:"JWT_PUBLIC_KEY_B64"`
 	AccessTokenTTLMin    int    `mapstructure:"ACCESS_TOKEN_TTL_MINUTES"`
 	RefreshTokenTTLDays  int    `mapstructure:"REFRESH_TOKEN_TTL_DAYS"`
 

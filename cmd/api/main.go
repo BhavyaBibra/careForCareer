@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"net/http"
@@ -57,8 +58,8 @@ func main() {
 		log.Fatal("s3 init failed", zap.Error(err))
 	}
 
-	// JWT keys
-	privateKey, publicKey, err := loadRSAKeys(cfg.JWTPrivateKeyPath, cfg.JWTPublicKeyPath)
+	// JWT keys — prefer base64 env vars (production), fall back to file paths (local dev)
+	privateKey, publicKey, err := loadRSAKeys(cfg.JWTPrivateKeyPath, cfg.JWTPublicKeyPath, cfg.JWTPrivateKeyB64, cfg.JWTPublicKeyB64)
 	if err != nil {
 		log.Fatal("jwt keys load failed", zap.Error(err))
 	}
@@ -149,11 +150,32 @@ func buildLogger(level string) *zap.Logger {
 	return log
 }
 
-func loadRSAKeys(privatePath, publicPath string) (*rsa.PrivateKey, *rsa.PublicKey, error) {
-	privBytes, err := os.ReadFile(privatePath)
-	if err != nil {
-		return nil, nil, fmt.Errorf("read private key: %w", err)
+func loadRSAKeys(privatePath, publicPath, privateB64, publicB64 string) (*rsa.PrivateKey, *rsa.PublicKey, error) {
+	var privBytes, pubBytes []byte
+
+	// Prefer base64 env vars (production/Render), fall back to file paths (local dev)
+	if privateB64 != "" && publicB64 != "" {
+		var err error
+		privBytes, err = base64.StdEncoding.DecodeString(privateB64)
+		if err != nil {
+			return nil, nil, fmt.Errorf("decode private key base64: %w", err)
+		}
+		pubBytes, err = base64.StdEncoding.DecodeString(publicB64)
+		if err != nil {
+			return nil, nil, fmt.Errorf("decode public key base64: %w", err)
+		}
+	} else {
+		var err error
+		privBytes, err = os.ReadFile(privatePath)
+		if err != nil {
+			return nil, nil, fmt.Errorf("read private key: %w", err)
+		}
+		pubBytes, err = os.ReadFile(publicPath)
+		if err != nil {
+			return nil, nil, fmt.Errorf("read public key: %w", err)
+		}
 	}
+
 	block, _ := pem.Decode(privBytes)
 	if block == nil {
 		return nil, nil, fmt.Errorf("invalid private key PEM")
@@ -171,10 +193,6 @@ func loadRSAKeys(privatePath, publicPath string) (*rsa.PrivateKey, *rsa.PublicKe
 		return nil, nil, fmt.Errorf("parse private key: %w", err2)
 	}
 
-	pubBytes, err := os.ReadFile(publicPath)
-	if err != nil {
-		return nil, nil, fmt.Errorf("read public key: %w", err)
-	}
 	pubBlock, _ := pem.Decode(pubBytes)
 	if pubBlock == nil {
 		return nil, nil, fmt.Errorf("invalid public key PEM")
