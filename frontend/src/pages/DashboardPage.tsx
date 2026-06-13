@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import api, { getAccessToken } from '../api/client'
+import api, { getAccessToken, apiBase } from '../api/client'
 import { getProfile, type Candidate } from '../api/candidate'
 import { useAuth } from '../context/AuthContext'
 import PositioningPanel from '../components/PositioningPanel'
@@ -18,7 +18,6 @@ export default function DashboardPage() {
     return fromQuery ? decodeURIComponent(fromQuery) : ''
   })
   const [jdSubmitted, setJdSubmitted] = useState(false)
-  const [submittingJD, setSubmittingJD] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
@@ -62,19 +61,10 @@ export default function DashboardPage() {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const submitJD = async () => {
+  const submitJD = () => {
     if (!jdText.trim()) return
-    setSubmittingJD(true)
-    setError('')
-    try {
-      await api.post('/jd', { raw_text: jdText })
-      setJdSubmitted(true)
-      setTab('coach')
-    } catch (err: any) {
-      setError(err.response?.data?.error?.message ?? 'Failed to submit JD')
-    } finally {
-      setSubmittingJD(false)
-    }
+    setJdSubmitted(true)
+    setTab('position')
   }
 
   const sendMessage = async () => {
@@ -85,18 +75,23 @@ export default function DashboardPage() {
     setStreaming(true)
 
     try {
-      // Create session if needed
+      // Create a JD-aware session on first message (no assessment_id required)
       let sid = sessionId
       if (!sid) {
-        const res = await api.post('/coach/sessions', {})
+        const res = await api.post('/coach/jd-sessions', {
+          job_title: jobFromParams?.title || 'Target Role',
+          company: jobFromParams?.company || '',
+          location: jobFromParams?.location || '',
+          jd_text: jdText || jobFromParams?.description || '',
+        })
         sid = res.data.session_id
         setSessionId(sid)
       }
 
-      // SSE stream
+      // SSE stream — absolute URL required for cross-origin Vercel→Render deployment
       const token = getAccessToken()
       const evtSource = new EventSource(
-        `/api/v1/coach/sessions/${sid}/stream?message=${encodeURIComponent(userMsg)}&token=${token}`
+        `${apiBase}/api/v1/coach/jd-sessions/${sid}/stream?message=${encodeURIComponent(userMsg)}&token=${token}`
       )
 
       let buffer = ''
@@ -252,9 +247,9 @@ export default function DashboardPage() {
                     className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500 resize-none"
                   />
                   {error && <div className="bg-red-900/40 border border-red-700 rounded-lg px-4 py-2.5 text-red-300 text-sm">{error}</div>}
-                  <button onClick={submitJD} disabled={!jdText.trim() || submittingJD}
+                  <button onClick={submitJD} disabled={!jdText.trim()}
                     className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium rounded-lg py-2.5 transition-colors">
-                    {submittingJD ? 'Submitting…' : 'Analyse JD →'}
+                    Analyse JD →
                   </button>
                 </>
               )}

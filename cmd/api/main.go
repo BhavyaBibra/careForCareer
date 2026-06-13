@@ -99,7 +99,7 @@ func main() {
 	resumeHandler := handlers.NewResumeHandler(resumeRepo, candidateRepo, storage)
 	assessmentHandler := handlers.NewAssessmentHandler(readinessRepo)
 	coachHandler := handlers.NewCoachHandler(coachSvc)
-	jobsHandler := handlers.NewJobsHandler()
+	jobsHandler := handlers.NewJobsHandler(redisClient, candidateRepo)
 	positioningHandler := handlers.NewPositioningHandler(candidateRepo, cachedLLM)
 	prepHandler := handlers.NewPrepHandler(coachSvc, candidateRepo, cachedLLM)
 	pivotHandler := handlers.NewPivotHandler(candidateRepo, cachedLLM)

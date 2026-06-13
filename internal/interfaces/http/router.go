@@ -76,6 +76,7 @@ func SetupRouter(
 
 		// Jobs
 		authed.GET("/jobs/search", jobsHandler.Search)
+		authed.GET("/jobs/suggested", jobsHandler.Suggested)
 		authed.POST("/jobs/position", positioningHandler.Analyse)
 		authed.POST("/jobs/prep-plan", prepHandler.GeneratePrepPlan)
 

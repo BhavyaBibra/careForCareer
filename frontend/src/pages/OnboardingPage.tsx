@@ -2,7 +2,7 @@ import { useState, useRef, type DragEvent, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createProfile, updateProfile } from '../api/candidate'
 import { uploadResume } from '../api/resume'
-import { searchJobs, type Job } from '../api/jobs'
+import { searchJobs, getSuggestedJobs, type Job } from '../api/jobs'
 import PositioningPanel from '../components/PositioningPanel'
 
 const TIER_LABELS = ['Fresh Grad', 'Junior (SDE-1)', 'Mid-level (SDE-2)', 'Senior (SDE-3)', 'Staff+']
@@ -98,6 +98,22 @@ export default function OnboardingPage() {
       setSearchDone(true)
     } catch (err: any) {
       setError(err.response?.data?.error?.message ?? 'Job search failed')
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  const handleSuggestJobs = async () => {
+    setSearching(true)
+    setError('')
+    setJobs([])
+    try {
+      const res = await getSuggestedJobs()
+      setJobs(res.data.jobs ?? [])
+      setSearchDone(true)
+      if (res.data.query) setJobQuery(res.data.query)
+    } catch (err: any) {
+      setError(err.response?.data?.error?.message ?? 'Could not load suggestions')
     } finally {
       setSearching(false)
     }
@@ -247,6 +263,26 @@ export default function OnboardingPage() {
                   </div>
                 </div>
                 <p className="text-gray-400 text-sm mt-1">Click a role to instantly see where you stand and what to improve.</p>
+              </div>
+
+              {/* Suggest button */}
+              <button
+                onClick={handleSuggestJobs}
+                disabled={searching}
+                className="w-full bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                {searching ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Finding jobs for you…
+                  </span>
+                ) : '✨ Get suggested jobs based on my profile'}
+              </button>
+
+              <div className="flex items-center gap-3 text-gray-600 text-xs">
+                <div className="flex-1 h-px bg-gray-700" />
+                or search manually
+                <div className="flex-1 h-px bg-gray-700" />
               </div>
 
               {/* Search inputs */}

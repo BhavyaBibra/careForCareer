@@ -14,14 +14,22 @@ import (
 const UserIDKey = "user_id"
 
 // JWT returns a Gin middleware that validates RS256 JWT access tokens.
+// Accepts the token either via "Authorization: Bearer <token>" header or the
+// "token" query parameter — the latter is required for browser EventSource (SSE)
+// clients that cannot set custom headers.
 func JWT(publicKey *rsa.PublicKey) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		tokenStr := ""
 		authHeader := c.GetHeader("Authorization")
-		if !strings.HasPrefix(authHeader, "Bearer ") {
+		if strings.HasPrefix(authHeader, "Bearer ") {
+			tokenStr = strings.TrimPrefix(authHeader, "Bearer ")
+		} else if q := c.Query("token"); q != "" {
+			tokenStr = q
+		}
+		if tokenStr == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, errorResponse("UNAUTHORIZED", "Missing or invalid Authorization header"))
 			return
 		}
-		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
 
 		token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
 			if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {

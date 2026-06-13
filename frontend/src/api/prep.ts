@@ -1,4 +1,4 @@
-import api, { getAccessToken } from './client'
+import api, { getAccessToken, apiBase } from './client'
 import type { PositioningResult } from './positioning'
 
 // ── JD-aware coach session ─────────────────────────────────────────────────
@@ -51,10 +51,11 @@ export function buildJDSessionRequest(
   }
 }
 
-// SSE stream URL for JD sessions (same pattern as regular coach)
+// SSE stream URL for JD sessions. Uses an absolute URL so EventSource works
+// across the Vercel (frontend) → Render (backend) cross-origin deployment.
 export function jdSessionStreamURL(sessionId: string, message: string): string {
   const token = getAccessToken()
-  return `/api/v1/coach/jd-sessions/${sessionId}/stream?message=${encodeURIComponent(message)}&token=${token}`
+  return `${apiBase}/api/v1/coach/jd-sessions/${sessionId}/stream?message=${encodeURIComponent(message)}&token=${token}`
 }
 
 // ── Prep plan ─────────────────────────────────────────────────────────────

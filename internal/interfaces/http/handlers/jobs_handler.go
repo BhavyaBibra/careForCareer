@@ -13,6 +13,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
+
+	"careergps/internal/domain/candidate"
+	"careergps/internal/infrastructure/postgres"
+	"careergps/internal/interfaces/http/middleware"
 )
 
 // Job represents a normalized job listing returned to the frontend.
@@ -27,16 +32,20 @@ type Job struct {
 	Source      string `json:"source"`
 }
 
-// JobsHandler handles job search requests.
+// JobsHandler handles job search and suggestion requests.
 type JobsHandler struct {
-	apifyToken string
-	httpClient *http.Client
+	apifyToken    string
+	httpClient    *http.Client
+	redisClient   *redis.Client
+	candidateRepo *postgres.CandidateRepo
 }
 
-func NewJobsHandler() *JobsHandler {
+func NewJobsHandler(redisClient *redis.Client, candidateRepo *postgres.CandidateRepo) *JobsHandler {
 	return &JobsHandler{
-		apifyToken: os.Getenv("APIFY_API_TOKEN"),
-		httpClient: &http.Client{Timeout: 30 * time.Second},
+		apifyToken:    os.Getenv("APIFY_API_TOKEN"),
+		httpClient:    &http.Client{Timeout: 30 * time.Second},
+		redisClient:   redisClient,
+		candidateRepo: candidateRepo,
 	}
 }
 
@@ -57,6 +66,18 @@ func (h *JobsHandler) Search(c *gin.Context) {
 		limit = 20
 	}
 
+	// Check Redis cache
+	cacheKey := fmt.Sprintf("jobs:search:%s:%s:%d", strings.ToLower(q), strings.ToLower(location), limit)
+	if h.redisClient != nil {
+		if cached, err := h.redisClient.Get(c.Request.Context(), cacheKey).Bytes(); err == nil {
+			var jobs []Job
+			if json.Unmarshal(cached, &jobs) == nil {
+				c.JSON(http.StatusOK, gin.H{"jobs": jobs, "total": len(jobs), "query": q, "location": location})
+				return
+			}
+		}
+	}
+
 	// Build search query combining keywords and location
 	searchQuery := q
 	if location != "" {
@@ -75,12 +96,106 @@ func (h *JobsHandler) Search(c *gin.Context) {
 		jobs = h.mockJobs(q, location, limit)
 	}
 
+	// Cache results for 5 minutes
+	if h.redisClient != nil && len(jobs) > 0 {
+		if b, jsonErr := json.Marshal(jobs); jsonErr == nil {
+			h.redisClient.Set(c.Request.Context(), cacheKey, b, 5*time.Minute)
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"jobs":  jobs,
-		"total": len(jobs),
-		"query": q,
+		"jobs":     jobs,
+		"total":    len(jobs),
+		"query":    q,
 		"location": location,
 	})
+}
+
+// Suggested godoc
+// GET /api/v1/jobs/suggested
+// Returns jobs tailored to the authenticated candidate's experience tier and profile.
+func (h *JobsHandler) Suggested(c *gin.Context) {
+	userID, ok := middleware.GetUserID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, errorEnvelope("UNAUTHORIZED", "Not authenticated"))
+		return
+	}
+
+	cand, err := h.candidateRepo.GetByUserID(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, errorEnvelope("NOT_FOUND", "Create your profile first"))
+		return
+	}
+
+	query, location := profileSearchQuery(cand)
+
+	// Cache suggested results per user for 10 minutes
+	cacheKey := fmt.Sprintf("jobs:suggested:%s", userID.String())
+	if h.redisClient != nil {
+		if cached, cErr := h.redisClient.Get(c.Request.Context(), cacheKey).Bytes(); cErr == nil {
+			var jobs []Job
+			if json.Unmarshal(cached, &jobs) == nil {
+				c.JSON(http.StatusOK, gin.H{
+					"jobs":     jobs,
+					"total":    len(jobs),
+					"query":    query,
+					"location": location,
+					"based_on": tierSummary(cand),
+				})
+				return
+			}
+		}
+	}
+
+	var jobs []Job
+	if h.apifyToken != "" {
+		jobs, err = h.fetchFromApify(c.Request.Context(), query+" "+location, location, 8)
+	}
+	if err != nil || h.apifyToken == "" {
+		jobs = h.mockJobs(query, location, 8)
+	}
+
+	// Cache for 10 minutes
+	if h.redisClient != nil && len(jobs) > 0 {
+		if b, jsonErr := json.Marshal(jobs); jsonErr == nil {
+			h.redisClient.Set(c.Request.Context(), cacheKey, b, 10*time.Minute)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"jobs":     jobs,
+		"total":    len(jobs),
+		"query":    query,
+		"location": location,
+		"based_on": tierSummary(cand),
+	})
+}
+
+// profileSearchQuery builds a targeted search query from the candidate's profile.
+func profileSearchQuery(cand *candidate.Candidate) (query, location string) {
+	switch cand.InferredTier {
+	case candidate.TierFreshGrad:
+		query = "software engineer fresher entry level"
+	case candidate.TierJunior:
+		query = "junior software engineer SDE-1 backend"
+	case candidate.TierMidLevel:
+		query = "software engineer SDE-2 backend golang python"
+	case candidate.TierSenior:
+		query = "senior software engineer SDE-3 backend distributed systems"
+	case candidate.TierStaff:
+		query = "staff engineer principal engineer backend"
+	default:
+		query = "software engineer backend"
+	}
+	return query, "India"
+}
+
+func tierSummary(cand *candidate.Candidate) string {
+	base := fmt.Sprintf("%d YOE, %s", cand.YearsExperience, cand.InferredTier.TierLabel())
+	if cand.CurrentCompany != "" {
+		base += " at " + cand.CurrentCompany
+	}
+	return base
 }
 
 // fetchFromApify calls the Apify LinkedIn Jobs Scraper actor.
