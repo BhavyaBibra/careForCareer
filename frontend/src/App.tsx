@@ -8,7 +8,10 @@ import PivotPage from './pages/PivotPage'
 import StudentPage from './pages/StudentPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, ready } = useAuth()
+  // Hold rendering until the initial token-refresh attempt completes so we
+  // don't flash /login on a valid session that's just waiting on a refresh.
+  if (!ready) return <div className="min-h-screen bg-gray-950" />
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />
 }
 
