@@ -33,6 +33,11 @@ export default function PositioningPanel({ job, declaredSkills, compact, yoe = 0
         job_description: job.description,
         declared_skills: declaredSkills,
       })
+      const data = res.data as any
+      if (data?.parse_error) {
+        setError('Analysis returned unexpected format — please try again.')
+        return
+      }
       setResult(res.data)
     } catch (err: any) {
       setError(err.response?.data?.error?.message ?? 'Analysis failed. Try again.')
@@ -116,16 +121,16 @@ export default function PositioningPanel({ job, declaredSkills, compact, yoe = 0
 
           {/* ── Skills ──────────────────────────────────────────────────── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {result.skill_matches.length > 0 && (
+            {(result.skill_matches?.length ?? 0) > 0 && (
               <SkillBlock title="✅ Your strengths" skills={result.skill_matches} />
             )}
-            {result.skill_gaps.length > 0 && (
+            {(result.skill_gaps?.length ?? 0) > 0 && (
               <SkillBlock title="⚠️ Gaps to close" skills={result.skill_gaps} />
             )}
           </div>
 
           {/* ── Action plan ─────────────────────────────────────────────── */}
-          {result.action_plan.length > 0 && (
+          {(result.action_plan?.length ?? 0) > 0 && (
             <div className="bg-gray-800 rounded-xl p-5 border border-gray-700 space-y-3">
               <h3 className="text-sm font-semibold text-white">🗺️ Your prep plan</h3>
               <div className="space-y-3">
@@ -138,7 +143,7 @@ export default function PositioningPanel({ job, declaredSkills, compact, yoe = 0
 
           {/* ── Interview focus + time ───────────────────────────────────── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {result.interview_focus.length > 0 && (
+            {(result.interview_focus?.length ?? 0) > 0 && (
               <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
                 <p className="text-xs text-gray-400 uppercase tracking-wider mb-3">🎤 Expect in interview</p>
                 <div className="flex flex-wrap gap-2">

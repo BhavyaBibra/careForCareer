@@ -164,12 +164,7 @@ JOB DESCRIPTION:
 
 	// Parse LLM JSON response
 	var result PositioningResult
-	raw := strings.TrimSpace(resp.Content)
-	// Strip potential markdown code fences
-	raw = strings.TrimPrefix(raw, "```json")
-	raw = strings.TrimPrefix(raw, "```")
-	raw = strings.TrimSuffix(raw, "```")
-	raw = strings.TrimSpace(raw)
+	raw := extractJSON(resp.Content)
 
 	if err := json.Unmarshal([]byte(raw), &result); err != nil {
 		// Return the raw content for debugging, but still 200 with a fallback
@@ -182,6 +177,29 @@ JOB DESCRIPTION:
 	}
 
 	c.JSON(http.StatusOK, result)
+}
+
+// extractJSON finds the first '{' ... last '}' in s, handling markdown fences.
+func extractJSON(s string) string {
+	s = strings.TrimSpace(s)
+	// Strip markdown code fences line by line
+	lines := strings.Split(s, "\n")
+	filtered := lines[:0]
+	for _, l := range lines {
+		trimmed := strings.TrimSpace(l)
+		if trimmed == "```json" || trimmed == "```" {
+			continue
+		}
+		filtered = append(filtered, l)
+	}
+	s = strings.TrimSpace(strings.Join(filtered, "\n"))
+	// Find JSON object bounds
+	start := strings.Index(s, "{")
+	end := strings.LastIndex(s, "}")
+	if start >= 0 && end > start {
+		return s[start : end+1]
+	}
+	return s
 }
 
 func orDefault(s, def string) string {
