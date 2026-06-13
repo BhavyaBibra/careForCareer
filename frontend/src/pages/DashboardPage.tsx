@@ -23,7 +23,6 @@ export default function DashboardPage() {
   const [streaming, setStreaming] = useState(false)
   const [sessionId, setSessionId] = useState('')
   const [tab, setTab] = useState<'jd' | 'position' | 'coach'>('jd')
-  const [error, setError] = useState('')
   const chatBottomRef = useRef<HTMLDivElement>(null)
   const { signOut } = useAuth()
   const navigate = useNavigate()
@@ -246,7 +245,6 @@ export default function DashboardPage() {
                     placeholder="Paste the full job description here…"
                     className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500 resize-none"
                   />
-                  {error && <div className="bg-red-900/40 border border-red-700 rounded-lg px-4 py-2.5 text-red-300 text-sm">{error}</div>}
                   <button onClick={submitJD} disabled={!jdText.trim()}
                     className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium rounded-lg py-2.5 transition-colors">
                     Analyse JD →
