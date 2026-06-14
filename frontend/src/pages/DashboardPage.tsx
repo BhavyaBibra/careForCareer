@@ -269,7 +269,7 @@ export default function DashboardPage() {
               </div>
 
               {jobFromParams ? (
-                <PositioningPanel job={jobFromParams} />
+                <PositioningPanel job={jobFromParams} yoe={candidate?.years_experience} />
               ) : jdText ? (
                 <PositioningPanel job={{
                   id: 'manual',
@@ -279,7 +279,7 @@ export default function DashboardPage() {
                   apply_url: '',
                   description: jdText,
                   source: 'manual',
-                }} />
+                }} yoe={candidate?.years_experience} />
               ) : (
                 <div className="text-center py-10 text-gray-500 space-y-2">
                   <p className="text-3xl">🎯</p>
