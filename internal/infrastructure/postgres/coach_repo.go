@@ -23,10 +23,15 @@ func NewCoachSessionRepo(pool *pgxpool.Pool) *CoachSessionRepo {
 }
 
 func (r *CoachSessionRepo) Create(ctx context.Context, s *coach.CoachSession) error {
+	// JD sessions use uuid.Nil as a sentinel for "no assessment" — store as SQL NULL
+	var assessmentID interface{}
+	if s.AssessmentID != uuid.Nil {
+		assessmentID = s.AssessmentID
+	}
 	_, err := r.pool.Exec(ctx, `
 		INSERT INTO coach_sessions (id, candidate_id, assessment_id, context_snapshot, expires_at, created_at)
 		VALUES ($1,$2,$3,$4,$5,$6)`,
-		s.ID, s.CandidateID, s.AssessmentID, s.ContextSnapshot, s.ExpiresAt, s.CreatedAt,
+		s.ID, s.CandidateID, assessmentID, s.ContextSnapshot, s.ExpiresAt, s.CreatedAt,
 	)
 	return err
 }
