@@ -68,6 +68,13 @@ func (h *PrepHandler) CreateJDSession(c *gin.Context) {
 		return
 	}
 
+	// Resolve candidate.id from user.id — coach_sessions FK references candidates(id)
+	cand, err := h.candidateRepo.GetByUserID(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, errorEnvelope("NOT_FOUND", "Create your profile first"))
+		return
+	}
+
 	jdCtx := &coach.JDContext{
 		JobTitle:       req.JobTitle,
 		Company:        req.Company,
@@ -83,7 +90,7 @@ func (h *PrepHandler) CreateJDSession(c *gin.Context) {
 		TimeToReady:    req.TimeToReady,
 	}
 
-	sess, err := h.coachSvc.CreateJDSession(c.Request.Context(), userID, jdCtx)
+	sess, err := h.coachSvc.CreateJDSession(c.Request.Context(), cand.ID, jdCtx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, errorEnvelope("INTERNAL_ERROR", "Could not create JD coach session"))
 		return
