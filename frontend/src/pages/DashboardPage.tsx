@@ -196,7 +196,7 @@ export default function DashboardPage() {
                 { label: 'Create profile', done: true },
                 { label: 'Upload resume', done: true },
                 { label: 'Select target role', done: !!jobFromParams || !!jdText },
-                { label: 'Check positioning', done: !!jobFromParams },
+                { label: 'Check positioning', done: !!jobFromParams || jdSubmitted },
                 { label: 'Chat with coach', done: messages.length > 0 },
               ].map(({ label, done }) => (
                 <div key={label} className="flex items-center gap-2 text-sm">
