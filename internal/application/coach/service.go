@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"careergps/internal/domain/candidate"
 	"careergps/internal/domain/coach"
 	"careergps/internal/domain/gap"
 	"careergps/internal/domain/readiness"
@@ -81,9 +82,9 @@ func (s *Service) CreateSession(ctx context.Context, candidateID, assessmentID u
 // CreateJDSession starts a coach session anchored to a specific job.
 // No assessmentID required — uses a nil UUID sentinel.
 // The JD context and positioning data are injected directly into the system prompt.
-func (s *Service) CreateJDSession(ctx context.Context, candidateID uuid.UUID, jdCtx *coach.JDContext) (*coach.CoachSession, error) {
-	// Base context: just candidate profile, no gap analysis required
+func (s *Service) CreateJDSession(ctx context.Context, candidateID uuid.UUID, cand *candidate.Candidate, jdCtx *coach.JDContext) (*coach.CoachSession, error) {
 	coachCtx := &coach.CoachContext{
+		Candidate: cand,
 		JDContext: jdCtx,
 	}
 

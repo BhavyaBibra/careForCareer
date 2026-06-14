@@ -90,7 +90,7 @@ func (h *PrepHandler) CreateJDSession(c *gin.Context) {
 		TimeToReady:    req.TimeToReady,
 	}
 
-	sess, err := h.coachSvc.CreateJDSession(c.Request.Context(), cand.ID, jdCtx)
+	sess, err := h.coachSvc.CreateJDSession(c.Request.Context(), cand.ID, cand, jdCtx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, errorEnvelope("INTERNAL_ERROR", "Could not create JD coach session"))
 		return
