@@ -80,7 +80,12 @@ export default function PrepPlanPanel({ job, result, yoe = 0 }: Props) {
       setMessages(prev => [...prev, { role: 'assistant', content: '' }])
 
       evtSource.addEventListener('delta', (e) => {
-        buffer += e.data
+        try {
+          const parsed = JSON.parse(e.data)
+          buffer += parsed.delta ?? e.data
+        } catch {
+          buffer += e.data
+        }
         setMessages(prev => {
           const updated = [...prev]
           updated[updated.length - 1] = { role: 'assistant', content: buffer }
