@@ -292,7 +292,7 @@ Rules:
 	resp, err := h.llmProvider.Generate(c.Request.Context(), llm.LLMRequest{
 		SystemPrompt: systemPrompt,
 		UserPrompt:   userPrompt,
-		MaxTokens:    3000,
+		MaxTokens:    4500,
 		Temperature:  0.3,
 	})
 	if err != nil {
@@ -311,7 +311,17 @@ Rules:
 
 	var plan llmPlan
 	if err := json.Unmarshal([]byte(raw), &plan); err != nil {
-		c.JSON(http.StatusInternalServerError, errorEnvelope("PARSE_ERROR", "Failed to parse prep plan"))
+		// Return debug info so frontend can surface a meaningful error
+		c.JSON(http.StatusOK, gin.H{
+			"parse_error": true,
+			"error":       err.Error(),
+			"raw_prefix":  truncate(resp.Content, 500),
+		})
+		return
+	}
+
+	if len(plan.Weeks) == 0 {
+		c.JSON(http.StatusInternalServerError, errorEnvelope("EMPTY_PLAN", "Prep plan returned no weeks"))
 		return
 	}
 

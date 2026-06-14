@@ -42,8 +42,12 @@ export default function PrepPlanPanel({ job, result, yoe = 0 }: Props) {
         interview_focus: result.interview_focus,
         yoe,
       })
-      setPlan(res.data)
-      setExpandedWeek(1)
+      if ((res.data as any).parse_error) {
+        setPlanError('Plan generation failed — please try again')
+      } else {
+        setPlan(res.data)
+        setExpandedWeek(1)
+      }
     } catch (err: any) {
       setPlanError(err.response?.data?.error?.message ?? 'Failed to generate plan')
     } finally {
