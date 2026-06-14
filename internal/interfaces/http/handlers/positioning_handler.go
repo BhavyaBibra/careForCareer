@@ -154,7 +154,7 @@ JOB DESCRIPTION:
 	resp, err := h.llm.Generate(c.Request.Context(), llm.LLMRequest{
 		SystemPrompt: systemPrompt,
 		UserPrompt:   userPrompt,
-		MaxTokens:    1500,
+		MaxTokens:    2500,
 		Temperature:  0.3,
 	})
 	if err != nil {
