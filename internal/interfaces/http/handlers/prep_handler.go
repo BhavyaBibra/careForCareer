@@ -300,11 +300,7 @@ Rules:
 		FinalTip   string     `json:"final_tip"`
 	}
 
-	raw := strings.TrimSpace(resp.Content)
-	raw = strings.TrimPrefix(raw, "```json")
-	raw = strings.TrimPrefix(raw, "```")
-	raw = strings.TrimSuffix(raw, "```")
-	raw = strings.TrimSpace(raw)
+	raw := extractJSON(resp.Content)
 
 	var plan llmPlan
 	if err := json.Unmarshal([]byte(raw), &plan); err != nil {
