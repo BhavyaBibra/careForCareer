@@ -89,8 +89,9 @@ export default function DashboardPage() {
 
       // SSE stream — absolute URL required for cross-origin Vercel→Render deployment
       const token = getAccessToken()
+      const sseBase = apiBase || window.location.origin
       const evtSource = new EventSource(
-        `${apiBase}/api/v1/coach/jd-sessions/${sid}/stream?message=${encodeURIComponent(userMsg)}&token=${token}`
+        `${sseBase}/api/v1/coach/jd-sessions/${sid}/stream?message=${encodeURIComponent(userMsg)}&token=${token}`
       )
 
       let buffer = ''
@@ -110,20 +111,9 @@ export default function DashboardPage() {
         })
       })
 
-      evtSource.addEventListener('done', () => {
-        evtSource.close()
-        setStreaming(false)
-      })
-
-      evtSource.addEventListener('error', () => {
-        evtSource.close()
-        setStreaming(false)
-      })
-
-      evtSource.onerror = () => {
-        evtSource.close()
-        setStreaming(false)
-      }
+      const cleanup = () => { evtSource.close(); setStreaming(false) }
+      evtSource.addEventListener('done', cleanup)
+      evtSource.onerror = cleanup
     } catch (err: any) {
       setStreaming(false)
       setMessages(prev => [...prev, { role: 'assistant', content: '⚠️ Coach unavailable right now.' }])
@@ -135,7 +125,7 @@ export default function DashboardPage() {
       {/* Header */}
       <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-xl font-bold text-indigo-400">CareerGPS</span>
+          <span className="text-xl font-bold text-indigo-400">careForCareer</span>
           {candidate && (
             <span className={`${TIER_COLORS[candidate.tier]} text-white text-xs font-semibold px-2.5 py-1 rounded-full`}>
               {candidate.tier_label}

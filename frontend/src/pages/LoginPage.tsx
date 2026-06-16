@@ -33,7 +33,7 @@ export default function LoginPage({ mode }: { mode: 'login' | 'register' }) {
     <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-white">CareerGPS</h1>
+          <h1 className="text-3xl font-bold text-white">careForCareer</h1>
           <p className="text-gray-400 mt-2">Your AI-powered interview readiness coach</p>
         </div>
 

@@ -46,7 +46,8 @@ export default function OnboardingPage() {
       let res
       try {
         res = await updateProfile({ years_experience: yoe, current_company: company, current_comp_inr: currentComp, target_comp_inr: targetComp })
-      } catch {
+      } catch (updateErr: any) {
+        if (updateErr.response?.status !== 404) throw updateErr
         res = await createProfile({ years_experience: yoe, current_company: company, current_comp_inr: currentComp, target_comp_inr: targetComp })
       }
       setTier(res.data.tier)
@@ -144,7 +145,7 @@ export default function OnboardingPage() {
       <div className="max-w-2xl mx-auto">
         {/* Header + progress */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold">Set up your CareerGPS profile</h1>
+          <h1 className="text-2xl font-bold">Set up your careForCareer profile</h1>
           <div className="flex gap-2 mt-4">
             {Array.from({ length: totalSteps }, (_, i) => (
               <div key={i} className={`h-1.5 flex-1 rounded-full ${step > i ? 'bg-indigo-500' : 'bg-gray-700'}`} />

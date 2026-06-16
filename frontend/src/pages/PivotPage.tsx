@@ -17,7 +17,7 @@ const TARGET_ROLES = [
 
 export default function PivotPage() {
   const navigate = useNavigate()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, ready } = useAuth()
 
   const [targetRole, setTargetRole] = useState('')
   const [targetRoleCustom, setTargetRoleCustom] = useState('')
@@ -28,7 +28,7 @@ export default function PivotPage() {
   const [error, setError] = useState('')
   const [result, setResult] = useState<PivotResult | null>(null)
 
-  if (!isAuthenticated) {
+  if (ready && !isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
         <div className="text-center space-y-4 max-w-sm mx-auto px-4">

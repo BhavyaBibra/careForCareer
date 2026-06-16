@@ -99,7 +99,6 @@ export default function PrepPlanPanel({ job, result, yoe = 0 }: Props) {
 
       const cleanup = () => { evtSource.close(); setStreaming(false) }
       evtSource.addEventListener('done', cleanup)
-      evtSource.addEventListener('error', cleanup)
       evtSource.onerror = cleanup
     } catch {
       setStreaming(false)
