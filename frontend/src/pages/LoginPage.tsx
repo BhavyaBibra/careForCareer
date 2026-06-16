@@ -62,6 +62,7 @@ export default function LoginPage({ mode }: { mode: 'login' | 'register' }) {
                 onChange={e => setPassword(e.target.value)}
                 required
                 minLength={8}
+                maxLength={72}
                 className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
                 placeholder="••••••••"
               />

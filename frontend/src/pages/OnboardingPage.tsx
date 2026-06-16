@@ -41,6 +41,10 @@ export default function OnboardingPage() {
   // ─── Step 1: save profile ─────────────────────────────────────────────────
   const saveProfile = async () => {
     setError('')
+    if (targetComp > 0 && currentComp > 0 && targetComp <= currentComp) {
+      setError('Target CTC should be higher than your current CTC')
+      return
+    }
     setSaving(true)
     try {
       let res
@@ -60,17 +64,31 @@ export default function OnboardingPage() {
     }
   }
 
+  const formatLPA = (inr: number) => inr > 0 ? `= ₹${(inr / 100000).toFixed(1)}L` : ''
+
   // ─── Step 2: resume upload ────────────────────────────────────────────────
+  const MAX_RESUME_BYTES = 5 * 1024 * 1024
+
   const handleDrop = (e: DragEvent) => {
     e.preventDefault()
     setDragging(false)
     const f = e.dataTransfer.files[0]
-    if (f?.type === 'application/pdf') setFile(f)
+    if (!f) return
+    if (f.type !== 'application/pdf') { setError('Only PDF files are accepted'); return }
+    if (f.size === 0) { setError('The file appears to be empty'); return }
+    if (f.size > MAX_RESUME_BYTES) { setError('File is too large — maximum size is 5 MB'); return }
+    setError('')
+    setFile(f)
   }
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
-    if (f) setFile(f)
+    if (!f) return
+    if (f.type !== 'application/pdf') { setError('Only PDF files are accepted'); return }
+    if (f.size === 0) { setError('The file appears to be empty'); return }
+    if (f.size > MAX_RESUME_BYTES) { setError('File is too large — maximum size is 5 MB'); return }
+    setError('')
+    setFile(f)
   }
 
   const handleUpload = async () => {
@@ -173,14 +191,29 @@ export default function OnboardingPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Current CTC (₹/year)</label>
-                <input type="number" min={0} value={currentComp} onChange={e => setCurrentComp(Number(e.target.value))}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500" />
+                <label className="block text-sm text-gray-400 mb-1">
+                  Current CTC <span className="text-gray-600">(₹ — e.g. 1200000 = 12 LPA)</span>
+                </label>
+                <input type="number" min={0} value={currentComp || ''} onChange={e => setCurrentComp(Number(e.target.value))}
+                  placeholder="e.g. 1200000"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500" />
+                {currentComp > 0 && (
+                  <p className="text-xs text-indigo-400 mt-1">{formatLPA(currentComp)}</p>
+                )}
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Target CTC (₹/year)</label>
-                <input type="number" min={0} value={targetComp} onChange={e => setTargetComp(Number(e.target.value))}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500" />
+                <label className="block text-sm text-gray-400 mb-1">
+                  Target CTC <span className="text-gray-600">(₹ — must be &gt; current)</span>
+                </label>
+                <input type="number" min={0} value={targetComp || ''} onChange={e => setTargetComp(Number(e.target.value))}
+                  placeholder="e.g. 2000000"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500" />
+                {targetComp > 0 && (
+                  <p className={`text-xs mt-1 ${targetComp > currentComp || currentComp === 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {formatLPA(targetComp)}
+                    {currentComp > 0 && targetComp <= currentComp ? ' — must exceed current CTC' : ''}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -231,10 +264,16 @@ export default function OnboardingPage() {
               {error && <div className="bg-red-900/40 border border-red-700 rounded-lg px-4 py-2.5 text-red-300 text-sm">{error}</div>}
 
               {!uploadDone ? (
-                <button onClick={handleUpload} disabled={!file || uploading}
-                  className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium rounded-lg py-2.5 transition-colors">
-                  {uploading ? 'Uploading…' : 'Upload resume'}
-                </button>
+                <div className="space-y-2">
+                  <button onClick={handleUpload} disabled={!file || uploading}
+                    className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium rounded-lg py-2.5 transition-colors">
+                    {uploading ? 'Uploading…' : 'Upload resume'}
+                  </button>
+                  <button onClick={() => setStep(3)}
+                    className="w-full text-gray-500 hover:text-gray-300 border border-gray-700 hover:border-gray-600 rounded-lg py-2 text-sm transition-colors">
+                    Skip for now →
+                  </button>
+                </div>
               ) : (
                 <div className="space-y-3">
                   <div className="bg-emerald-900/40 border border-emerald-700 rounded-lg px-4 py-2.5 text-emerald-300 text-sm">
@@ -256,6 +295,7 @@ export default function OnboardingPage() {
             <div className="bg-gray-900 rounded-2xl p-8 border border-gray-800 space-y-5">
               <div>
                 <div className="flex items-center gap-2">
+                  <button onClick={() => setStep(2)} className="text-gray-500 hover:text-gray-300 text-sm transition-colors">← Back</button>
                   <h2 className="text-lg font-semibold">Find your target role</h2>
                   <div className="flex gap-1.5">
                     <span className="text-xs bg-blue-900/50 text-blue-300 border border-blue-800 px-2 py-0.5 rounded-full font-medium">LinkedIn</span>
@@ -294,6 +334,7 @@ export default function OnboardingPage() {
                   onChange={e => setJobQuery(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleJobSearch()}
                   placeholder="Role e.g. Backend Engineer"
+                  maxLength={100}
                   className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-indigo-500"
                 />
                 <input
